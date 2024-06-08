@@ -4,6 +4,7 @@ import axios from 'axios';
 const router = express.Router();
 
 interface Product {
+  id: string;
   name: string;
   companyName: string;
   category: string;
@@ -18,6 +19,12 @@ router.get('/:companyname/categories/:categoryname/products', async (req: Reques
   const top = parseInt(req.query.top as string, 10) || 10;
   const minPrice = parseFloat(req.query.minPrice as string) || 0;
   const maxPrice = parseFloat(req.query.maxPrice as string) || Infinity;
+  const rating = parseFloat(req.query.rating as string) || 0;
+  const availability = req.query.availability === 'true';
+  const sortBy = req.query.sortBy || 'price';
+  const sortOrder = req.query.sortOrder === 'desc' ? -1 : 1;
+  const page = parseInt(req.query.page as string, 10) || 1;
+  const limit = parseInt(req.query.limit as string, 10) || 10;
 
   if (!companyname || !categoryname) {
     return res.status(400).json({ error: 'Company name and category name are required' });
@@ -28,14 +35,24 @@ router.get('/:companyname/categories/:categoryname/products', async (req: Reques
     const response = await axios.get<Product[]>(apiUrl);
     const products = response.data;
 
-    // Apply price filters
-    const filteredProducts = products.filter(product => product.price >= minPrice && product.price <= maxPrice);
-    // Sort products by rating and slice the top 'n' products
-    const topProducts = filteredProducts.sort((a, b) => b.rating - a.rating).slice(0, top);
+    // Apply filters
+    let filteredProducts = products
+      .filter(product => product.price >= minPrice && product.price <= maxPrice)
+      .filter(product => product.rating >= rating)
+      .filter(product => (req.query.availability ? product.availability === availability : true));
 
-    return res.status(200).json(topProducts);
+    // Apply sorting
+    if (sortBy) {
+      filteredProducts = filteredProducts.sort((a, b) => (a[sortBy] > b[sortBy] ? sortOrder : -sortOrder));
+    }
+
+    // Pagination
+    const total = filteredProducts.length;
+    const paginatedProducts = filteredProducts.slice((page - 1) * limit, page * limit);
+
+    return res.status(200).json({ total, products: paginatedProducts });
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to fetch products' });
+    return res.status(500).json({ error: 'Failed to fetch the products' });
   }
 });
 
