@@ -14,6 +14,11 @@ interface Product {
   availability: boolean;
 }
 
+
+const isSortKey = (key: any): key is keyof Product => {
+  return ['price', 'rating', 'discount'].includes(key);
+};
+
 router.get('/:companyname/categories/:categoryname/products', async (req: Request, res: Response) => {
   const { companyname, categoryname } = req.params;
   const top = parseInt(req.query.top as string, 10) || 10;
@@ -42,7 +47,7 @@ router.get('/:companyname/categories/:categoryname/products', async (req: Reques
       .filter(product => (req.query.availability ? product.availability === availability : true));
 
     // Apply sorting
-    if (sortBy) {
+    if (isSortKey(sortBy)) {
       filteredProducts = filteredProducts.sort((a, b) => (a[sortBy] > b[sortBy] ? sortOrder : -sortOrder));
     }
 
